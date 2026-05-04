@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -39,6 +40,7 @@ public class User {
   private String email;
 
   @Column(name = "password_hash", nullable = false, length = 100)
+  @ToString.Exclude          // Chapter 31 — never log this field
   private String passwordHash;
 
   @Enumerated(EnumType.STRING)

