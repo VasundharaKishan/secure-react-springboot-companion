@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secbook-postgres
+    environment:
+      POSTGRES_USER: secbook
+      POSTGRES_PASSWORD: secbook_dev_password
+      POSTGRES_DB: secbook
+    ports:
+      # Bound to 5433 on the host so we don't clash with a system Postgres on 5432.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secbook"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: secbook-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: secbook-mailhog
+    ports:
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # Web UI
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ClamAV is optional — only needed for Chapter 24 (file upload virus scanning).
+  # Uncomment to enable. First start takes a few minutes to download definitions.
+  # clamav:
+  #   image: clamav/clamav:latest
+  #   container_name: secbook-clamav
+  #   ports:
+  #     - "127.0.0.1:3310:3310"
+  #   healthcheck:
+  #     test: ["CMD", "clamdscan", "--version"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 10
+
+volumes:
+  postgres_data:

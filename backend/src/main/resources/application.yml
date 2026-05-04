@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: security-book-app
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/secbook
+    username: secbook
+    password: ${DB_PASSWORD:secbook_dev_password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false   # Never true in prod — leaks parameters into logs
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+server:
+  port: 8080
+  error:
+    include-message: never           # Don't leak internal messages
+    include-stacktrace: never        # Never in any environment
+    include-binding-errors: never
+
+# Application-specific config (read by SecurityConfig and friends)
+app:
+  jwt:
+    # In production this comes from a secret manager — see Chapter 26.
+    # The 64-byte length here is the minimum for HS512.
+    secret: ${JWT_SECRET:CHANGE_ME_local_dev_secret_at_least_64_bytes_long_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+    access-token-ttl: PT15M
+    refresh-token-ttl: P7D
+    issuer: security-book-app
+
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+
+  # Toggle used by chapters that demonstrate vulnerable vs fixed behavior.
+  # Default: fixed. Set SECURITY_MODE=vulnerable to enable the broken paths.
+  security-mode: ${SECURITY_MODE:fixed}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Deliberately minimal. Chapter 6 demonstrates what goes wrong if you
+        # expose env, beans, or heapdump unauthenticated.
+        include: health, info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.securitybook: DEBUG

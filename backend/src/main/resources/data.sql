@@ -1,0 +1,6 @@
+-- Empty.
+--
+-- Seeding happens in SeedDataInitializer.java because user passwords need
+-- to be hashed by BCryptPasswordEncoder at startup — bcrypt hashes cannot
+-- be checked into version control safely (see Chapter 7) and the cost
+-- factor in the config (12) determines the hash format.
