@@ -1,0 +1,39 @@
+<!--
+  FIXED — the project's pom.xml does NOT pin log4j-core directly. Spring
+  Boot 3.4 manages SLF4J 2 + Logback 1.5; if you ever do need log4j
+  (e.g. a transitive that requires it) override the version from a known-
+  good 2.x line:
+-->
+
+<!-- Force any transitive log4j to a Log4Shell-patched version. -->
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-bom</artifactId>
+      <version>2.24.3</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
+<!--
+  And add the OWASP Dependency-Check plugin to your build so the CI
+  pipeline fails on known CVEs before they ship.
+-->
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.owasp</groupId>
+      <artifactId>dependency-check-maven</artifactId>
+      <version>11.1.1</version>
+      <configuration>
+        <failBuildOnCVSS>7</failBuildOnCVSS>      <!-- fail on High and Critical -->
+        <suppressionFiles>
+          <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+        </suppressionFiles>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>

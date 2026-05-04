@@ -1,0 +1,76 @@
+# FIXED — copy to:
+#   .github/workflows/ci.yml
+#
+# Five corrections matching the three vulnerabilities in vulnerable/:
+#   1. `pull_request` (not `pull_request_target`) — fork code runs WITHOUT
+#      base-branch secrets.
+#   2. permissions scoped to `read` for everything we don't write.
+#   3. Security scans run as hard gates: no `continue-on-error`, exit codes
+#      respected, the build fails on findings above the configured threshold.
+#   4. Pinned action versions — Trivy at a tag, never @master.
+#   5. Secrets injected only at the steps that need them (publish job),
+#      not at the top level where any plugin can read them.
+
+name: CI
+
+on:
+  pull_request:                 # safe default — fork PRs can't read base secrets
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read                # least privilege; bump per-job if needed
+  pull-requests: write          # for posting scan summaries
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: maven }
+
+      - name: Compile + unit tests
+        run: mvn -B verify
+
+      - name: SpotBugs / FindSecBugs (SAST)
+        run: mvn -B com.github.spotbugs:spotbugs-maven-plugin:check        # hard gate
+
+      - name: OWASP Dependency-Check (SCA)
+        run: mvn -B org.owasp:dependency-check-maven:check                  # fails on CVSS >= 7
+        env:
+          # NVD API key avoids rate limits — public secret, scope is read-only
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@0.28.0           # pinned, not @master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'                                 # hard gate
+          ignore-unfixed: true
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2                # pinned major
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    # Publishing reaches secrets — guard it with environment approval.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production            # GitHub environment with required reviewers
+    permissions:
+      contents: read
+      packages: write                  # write only here, only for the publish job
+      id-token: write                  # for OIDC (no long-lived AWS keys)
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/secbook-publish
+          aws-region: eu-west-1
+      # ... publish steps ...

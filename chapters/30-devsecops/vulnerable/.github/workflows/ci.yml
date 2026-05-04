@@ -1,0 +1,57 @@
+# VULNERABLE — copy to:
+#   .github/workflows/ci.yml
+#
+# Three security defects:
+#   1. `pull_request_target` instead of `pull_request` runs with the
+#      base-branch secrets and grants the FORK PR write tokens. A malicious
+#      PR steals every secret available to the workflow.
+#   2. Security scans are present but `continue-on-error: true` — they
+#      report findings without blocking merge. CISOs love seeing the
+#      checkmark; attackers love that nobody acted on the report.
+#   3. `aquasecurity/trivy-action@master` follows the upstream branch.
+#      A maintainer compromise becomes our compromise on the next push.
+
+name: CI (vulnerable)
+
+on:
+  pull_request_target:        # BUG #1: exposes secrets to fork PRs
+    branches: [main]
+
+permissions:
+  contents: write             # write because... we forgot to scope it down
+  pull-requests: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # checks out fork code WITH secrets in scope
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+
+      - run: mvn -B package
+        env:
+          # All these secrets reach the fork PR's code via mvn plugins,
+          # surefire forking, JVM args, etc. A malicious PR exfiltrates them.
+          NPM_TOKEN:   ${{ secrets.NPM_TOKEN }}
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_PASSWORD:       ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: SAST
+        continue-on-error: true               # BUG #2
+        run: mvn -B com.github.spotbugs:spotbugs-maven-plugin:check
+
+      - name: SCA
+        continue-on-error: true               # BUG #2
+        run: mvn -B org.owasp:dependency-check-maven:check
+
+      - name: Container scan
+        uses: aquasecurity/trivy-action@master   # BUG #3: floating tag
+        continue-on-error: true                  # BUG #2
+        with:
+          image-ref: my-app:latest
